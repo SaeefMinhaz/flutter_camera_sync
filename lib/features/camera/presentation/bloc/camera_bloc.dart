@@ -59,11 +59,25 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
   ) async {
     emit(const CameraLoading());
 
-    final hasPermission = await _permissionService.ensureCameraPermission();
+    final bool hasPermission = await _permissionService.ensureCameraPermission();
     if (!hasPermission) {
-      emit(const CameraFailureState(
-        'Camera permission is required to take photos. Please grant it in system settings.',
-      ));
+      final bool permanentlyDenied =
+          await _permissionService.isCameraPermanentlyDenied();
+      if (permanentlyDenied) {
+        emit(
+          const CameraFailureState(
+            'Camera permission has been permanently denied.\n'
+            'Please enable it in system settings to take photos.',
+          ),
+        );
+      } else {
+        emit(
+          const CameraFailureState(
+            'Camera permission is required to take photos.\n'
+            'Please grant it when asked.',
+          ),
+        );
+      }
       return;
     }
 

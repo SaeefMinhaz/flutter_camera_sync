@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_camera_sync/features/camera/domain/entities/capture_batch.dart';
+import 'package:flutter_camera_sync/features/camera/domain/entities/upload_status.dart';
 import 'package:flutter_camera_sync/features/sync/presentation/bloc/upload_queue_bloc.dart';
 import 'package:flutter_camera_sync/features/sync/presentation/bloc/upload_queue_event.dart';
 import 'package:flutter_camera_sync/features/sync/presentation/bloc/upload_queue_state.dart';
@@ -102,10 +103,23 @@ class _BatchTile extends StatelessWidget {
       title: Text(title),
       subtitle: Text('Created $createdText'),
       trailing: Text(
-        batch.status.name,
+        _statusLabel(batch.status),
         style: theme.textTheme.bodySmall,
       ),
     );
+  }
+
+  String _statusLabel(UploadStatus status) {
+    switch (status) {
+      case UploadStatus.pending:
+        return 'Waiting for upload';
+      case UploadStatus.uploading:
+        return 'Uploading';
+      case UploadStatus.uploaded:
+        return 'Uploaded';
+      case UploadStatus.failed:
+        return 'Upload failed';
+    }
   }
 }
 
