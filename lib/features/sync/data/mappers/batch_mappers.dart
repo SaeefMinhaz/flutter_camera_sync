@@ -34,7 +34,12 @@ CaptureBatch batchFromRow(Batch row) {
 }
 
 Result<T> mapDriftError<T>(Object error) {
-  return Result.failure(StorageFailure('Problem talking to local database', cause: error));
+  return Result.failure(
+    StorageFailure(
+      'Problem talking to local database',
+      cause: error,
+    ),
+  );
 }
 
 String uploadStatusToDb(UploadStatus status) => _statusToString(status);

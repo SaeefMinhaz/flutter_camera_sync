@@ -3,7 +3,7 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
-class $BatchesTable extends Batches with TableInfo<$BatchesTable, Batche> {
+class $BatchesTable extends Batches with TableInfo<$BatchesTable, Batch> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -55,7 +55,7 @@ class $BatchesTable extends Batches with TableInfo<$BatchesTable, Batche> {
   static const String $name = 'batches';
   @override
   VerificationContext validateIntegrity(
-    Insertable<Batche> instance, {
+    Insertable<Batch> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -93,9 +93,9 @@ class $BatchesTable extends Batches with TableInfo<$BatchesTable, Batche> {
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  Batche map(Map<String, dynamic> data, {String? tablePrefix}) {
+  Batch map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return Batche(
+    return Batch(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -121,12 +121,12 @@ class $BatchesTable extends Batches with TableInfo<$BatchesTable, Batche> {
   }
 }
 
-class Batche extends DataClass implements Insertable<Batche> {
+class Batch extends DataClass implements Insertable<Batch> {
   final String id;
   final DateTime createdAt;
   final String? label;
   final String status;
-  const Batche({
+  const Batch({
     required this.id,
     required this.createdAt,
     this.label,
@@ -155,12 +155,12 @@ class Batche extends DataClass implements Insertable<Batche> {
     );
   }
 
-  factory Batche.fromJson(
+  factory Batch.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Batche(
+    return Batch(
       id: serializer.fromJson<String>(json['id']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       label: serializer.fromJson<String?>(json['label']),
@@ -178,19 +178,19 @@ class Batche extends DataClass implements Insertable<Batche> {
     };
   }
 
-  Batche copyWith({
+  Batch copyWith({
     String? id,
     DateTime? createdAt,
     Value<String?> label = const Value.absent(),
     String? status,
-  }) => Batche(
+  }) => Batch(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
     label: label.present ? label.value : this.label,
     status: status ?? this.status,
   );
-  Batche copyWithCompanion(BatchesCompanion data) {
-    return Batche(
+  Batch copyWithCompanion(BatchesCompanion data) {
+    return Batch(
       id: data.id.present ? data.id.value : this.id,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       label: data.label.present ? data.label.value : this.label,
@@ -200,7 +200,7 @@ class Batche extends DataClass implements Insertable<Batche> {
 
   @override
   String toString() {
-    return (StringBuffer('Batche(')
+    return (StringBuffer('Batch(')
           ..write('id: $id, ')
           ..write('createdAt: $createdAt, ')
           ..write('label: $label, ')
@@ -214,14 +214,14 @@ class Batche extends DataClass implements Insertable<Batche> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Batche &&
+      (other is Batch &&
           other.id == this.id &&
           other.createdAt == this.createdAt &&
           other.label == this.label &&
           other.status == this.status);
 }
 
-class BatchesCompanion extends UpdateCompanion<Batche> {
+class BatchesCompanion extends UpdateCompanion<Batch> {
   final Value<String> id;
   final Value<DateTime> createdAt;
   final Value<String?> label;
@@ -243,7 +243,7 @@ class BatchesCompanion extends UpdateCompanion<Batche> {
   }) : id = Value(id),
        createdAt = Value(createdAt),
        status = Value(status);
-  static Insertable<Batche> custom({
+  static Insertable<Batch> custom({
     Expression<String>? id,
     Expression<DateTime>? createdAt,
     Expression<String>? label,
@@ -918,7 +918,7 @@ typedef $$BatchesTableUpdateCompanionBuilder =
     });
 
 final class $$BatchesTableReferences
-    extends BaseReferences<_$AppDatabase, $BatchesTable, Batche> {
+    extends BaseReferences<_$AppDatabase, $BatchesTable, Batch> {
   $$BatchesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static MultiTypedResultKey<$ImagesTable, List<Image>> _imagesRefsTable(
@@ -1078,14 +1078,14 @@ class $$BatchesTableTableManager
         RootTableManager<
           _$AppDatabase,
           $BatchesTable,
-          Batche,
+          Batch,
           $$BatchesTableFilterComposer,
           $$BatchesTableOrderingComposer,
           $$BatchesTableAnnotationComposer,
           $$BatchesTableCreateCompanionBuilder,
           $$BatchesTableUpdateCompanionBuilder,
-          (Batche, $$BatchesTableReferences),
-          Batche,
+          (Batch, $$BatchesTableReferences),
+          Batch,
           PrefetchHooks Function({bool imagesRefs})
         > {
   $$BatchesTableTableManager(_$AppDatabase db, $BatchesTable table)
@@ -1143,7 +1143,7 @@ class $$BatchesTableTableManager
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (imagesRefs)
-                    await $_getPrefetchedData<Batche, $BatchesTable, Image>(
+                    await $_getPrefetchedData<Batch, $BatchesTable, Image>(
                       currentTable: table,
                       referencedTable: $$BatchesTableReferences
                           ._imagesRefsTable(db),
@@ -1165,14 +1165,14 @@ typedef $$BatchesTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $BatchesTable,
-      Batche,
+      Batch,
       $$BatchesTableFilterComposer,
       $$BatchesTableOrderingComposer,
       $$BatchesTableAnnotationComposer,
       $$BatchesTableCreateCompanionBuilder,
       $$BatchesTableUpdateCompanionBuilder,
-      (Batche, $$BatchesTableReferences),
-      Batche,
+      (Batch, $$BatchesTableReferences),
+      Batch,
       PrefetchHooks Function({bool imagesRefs})
     >;
 typedef $$ImagesTableCreateCompanionBuilder =

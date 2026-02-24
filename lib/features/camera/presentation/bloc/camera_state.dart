@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:camera/camera.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter_camera_sync/features/camera/domain/entities/capture_batch.dart';
 
 abstract class CameraState extends Equatable {
   const CameraState();
@@ -37,6 +38,7 @@ class CameraReady extends CameraState {
   final bool isZoomSupported;
   final bool isFocusSupported;
   final Offset? focusPoint;
+  final CaptureBatch? currentBatch;
 
   const CameraReady({
     required this.controller,
@@ -48,6 +50,7 @@ class CameraReady extends CameraState {
     this.isZoomSupported = false,
     this.isFocusSupported = false,
     this.focusPoint,
+    this.currentBatch,
   });
 
   CameraReady copyWith({
@@ -60,6 +63,7 @@ class CameraReady extends CameraState {
     bool? isZoomSupported,
     bool? isFocusSupported,
     Offset? focusPoint,
+    CaptureBatch? currentBatch,
   }) {
     return CameraReady(
       controller: controller ?? this.controller,
@@ -72,6 +76,7 @@ class CameraReady extends CameraState {
       isZoomSupported: isZoomSupported ?? this.isZoomSupported,
       isFocusSupported: isFocusSupported ?? this.isFocusSupported,
       focusPoint: focusPoint ?? this.focusPoint,
+      currentBatch: currentBatch ?? this.currentBatch,
     );
   }
 
@@ -86,6 +91,7 @@ class CameraReady extends CameraState {
         isZoomSupported,
         isFocusSupported,
         focusPoint,
+        currentBatch,
       ];
 }
 

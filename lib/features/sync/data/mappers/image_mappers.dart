@@ -18,7 +18,7 @@ UploadStatus _statusFromString(String raw) {
   }
 }
 
-String uploadStatusToDb(UploadStatus status) {
+String imageUploadStatusToDb(UploadStatus status) {
   return status.name;
 }
 

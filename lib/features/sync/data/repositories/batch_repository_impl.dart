@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_camera_sync/core/error/failure.dart';
 import 'package:flutter_camera_sync/core/result/result.dart';
 import 'package:flutter_camera_sync/features/camera/domain/entities/capture_batch.dart';
@@ -18,7 +19,7 @@ class BatchRepositoryImpl implements BatchRepository {
   Future<Result<CaptureBatch>> createBatch({String? label}) async {
     try {
       final batchCompanion = BatchesCompanion.insert(
-        id: Value(DateTime.now().microsecondsSinceEpoch.toString()),
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
         createdAt: DateTime.now(),
         label: Value(label),
         status: uploadStatusToDb(UploadStatus.pending),
@@ -54,11 +55,11 @@ class BatchRepositoryImpl implements BatchRepository {
         width: Value(image.width),
         height: Value(image.height),
         deviceName: Value(image.deviceName),
-        uploadStatus: uploadStatusToDb(image.uploadStatus),
+        uploadStatus: imageUploadStatusToDb(image.uploadStatus),
       );
 
       await _db.into(_db.images).insert(companion);
-      return const Result.success(null);
+      return Result.success(null);
     } catch (e) {
       return mapDriftError<void>(e);
     }
@@ -68,9 +69,11 @@ class BatchRepositoryImpl implements BatchRepository {
   Future<Result<List<CaptureBatch>>> getPendingBatches() async {
     try {
       final rows = await (_db.select(_db.batches)
-            ..where((tbl) => tbl.status.equals(uploadStatusToDb(UploadStatus.pending))))
+            ..where(
+              (tbl) => tbl.status.equals(uploadStatusToDb(UploadStatus.pending)),
+            ))
           .get();
-      final batches = rows.map(batchFromRow).toList();
+      final batches = rows.map<CaptureBatch>(batchFromRow).toList();
       return Result.success(batches);
     } catch (e) {
       return mapDriftError<List<CaptureBatch>>(e);
@@ -83,7 +86,7 @@ class BatchRepositoryImpl implements BatchRepository {
       final row = await (_db.select(_db.batches)..where((tbl) => tbl.id.equals(id)))
           .getSingleOrNull();
       if (row == null) {
-        return const Result.success(null);
+        return Result.success(null);
       }
       return Result.success(batchFromRow(row));
     } catch (e) {
@@ -102,7 +105,7 @@ class BatchRepositoryImpl implements BatchRepository {
           status: Value(uploadStatusToDb(status)),
         ),
       );
-      return const Result.success(null);
+      return Result.success(null);
     } catch (e) {
       return mapDriftError<void>(e);
     }
@@ -113,7 +116,7 @@ class BatchRepositoryImpl implements BatchRepository {
     try {
       await (_db.delete(_db.images)..where((tbl) => tbl.batchId.equals(batchId))).go();
       await (_db.delete(_db.batches)..where((tbl) => tbl.id.equals(batchId))).go();
-      return const Result.success(null);
+      return Result.success(null);
     } catch (e) {
       return mapDriftError<void>(e);
     }

@@ -25,7 +25,7 @@ class SyncRepositoryImpl implements SyncRepository {
       // that later features can plug in Dio-based uploads and
       // status updates cleanly.
       await _db.select(_db.images).get();
-      return const Result.success(null);
+      return Result.success(null);
     } catch (e) {
       return Result.failure(
         StorageFailure('Failed to read pending images from local database', cause: e),

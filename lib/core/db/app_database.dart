@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 part 'app_database.g.dart';
 
 /// Drift table for capture batches.
+@DataClassName('Batch')
 class Batches extends Table {
   TextColumn get id => text()();
 

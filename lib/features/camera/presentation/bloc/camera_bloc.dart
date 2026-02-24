@@ -3,8 +3,11 @@ import 'dart:ui';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_camera_sync/core/error/failure.dart';
 import 'package:flutter_camera_sync/core/services/permission_service.dart';
+import 'package:flutter_camera_sync/core/storage/local_file_storage.dart';
 import 'package:flutter_camera_sync/core/usecase/use_case.dart';
 import 'package:flutter_camera_sync/features/camera/domain/domain.dart';
+import 'package:flutter_camera_sync/features/sync/domain/domain.dart';
+import 'package:path/path.dart' as p;
 
 import 'camera_event.dart';
 import 'camera_state.dart';
@@ -17,6 +20,9 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
   final CaptureImage _captureImage;
   final ChangeZoom _changeZoom;
   final SetFocusPoint _setFocusPoint;
+  final CreateBatch _createBatch;
+  final AddImageToBatch _addImageToBatch;
+  final LocalFileStorage _fileStorage;
 
   CameraBloc({
     required PermissionService permissionService,
@@ -26,6 +32,9 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     required CaptureImage captureImage,
     required ChangeZoom changeZoom,
     required SetFocusPoint setFocusPoint,
+    required CreateBatch createBatch,
+    required AddImageToBatch addImageToBatch,
+    required LocalFileStorage fileStorage,
   })  : _permissionService = permissionService,
         _getAvailableCameras = getAvailableCameras,
         _initializeCamera = initializeCamera,
@@ -33,6 +42,9 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
         _captureImage = captureImage,
         _changeZoom = changeZoom,
         _setFocusPoint = setFocusPoint,
+        _createBatch = createBatch,
+        _addImageToBatch = addImageToBatch,
+        _fileStorage = fileStorage,
         super(const CameraInitial()) {
     on<CameraStarted>(_onStarted);
     on<CameraStopped>(_onStopped);
@@ -132,23 +144,93 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
 
     emit(currentState.copyWith(isCapturing: true));
 
-    final result = await _captureImage(const NoParams());
-    if (result.isFailure || result.value == null) {
-      final failure = result.failure;
-      emit(CameraFailureState(
-        _friendlyMessage(
-          failure,
-          fallback: 'Something went wrong while taking the photo.',
+    // Ensure we have a batch for this capture session.
+    CaptureBatch? batch = currentState.currentBatch;
+    if (batch == null) {
+      final batchResult = await _createBatch(const CreateBatchParams());
+      if (batchResult.isFailure || batchResult.value == null) {
+        final failure = batchResult.failure;
+        emit(
+          CameraFailureState(
+            _friendlyMessage(
+              failure,
+              fallback: 'Could not start a new batch for this capture.',
+            ),
+          ),
+        );
+        emit(currentState.copyWith(isCapturing: false));
+        return;
+      }
+      batch = batchResult.value!;
+    }
+
+    final captureResult = await _captureImage(const NoParams());
+    if (captureResult.isFailure || captureResult.value == null) {
+      final failure = captureResult.failure;
+      emit(
+        CameraFailureState(
+          _friendlyMessage(
+            failure,
+            fallback: 'Something went wrong while taking the photo.',
+          ),
         ),
-      ));
+      );
+      emit(currentState.copyWith(isCapturing: false));
       return;
     }
 
-    final image = result.value!;
+    final captured = captureResult.value!;
+
+    // Copy the image into our own storage area and attach it to the batch.
+    String storedPath;
+    try {
+      final fileName = p.basename(captured.filePath);
+      storedPath = await _fileStorage.copyImageIntoStorage(
+        sourcePath: captured.filePath,
+        batchId: batch.id,
+        fileName: fileName,
+      );
+    } catch (e) {
+      emit(
+        CameraFailureState(
+          'Photo was taken but could not be moved into local storage.',
+        ),
+      );
+      emit(currentState.copyWith(isCapturing: false));
+      return;
+    }
+
+    final storedImage = captured.copyWith(
+      filePath: storedPath,
+      batchId: batch.id,
+    );
+
+    final addResult = await _addImageToBatch(
+      AddImageToBatchParams(
+        batchId: batch.id,
+        image: storedImage,
+      ),
+    );
+
+    if (addResult.isFailure) {
+      final failure = addResult.failure;
+      emit(
+        CameraFailureState(
+          _friendlyMessage(
+            failure,
+            fallback: 'Photo was taken but could not be queued for upload.',
+          ),
+        ),
+      );
+      emit(currentState.copyWith(isCapturing: false));
+      return;
+    }
+
     emit(
       currentState.copyWith(
         isCapturing: false,
-        lastCapturedImagePath: image.filePath,
+        lastCapturedImagePath: storedImage.filePath,
+        currentBatch: batch,
       ),
     );
   }
