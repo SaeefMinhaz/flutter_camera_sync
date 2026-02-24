@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter_camera_sync/core/result/result.dart';
 
 import '../entities/captured_image.dart';
@@ -11,7 +12,9 @@ import '../entities/focus_point.dart';
 abstract class CameraRepository {
   Future<Result<List<CameraDevice>>> getAvailableCameras();
 
-  Future<Result<void>> initialize(CameraDevice device);
+  /// Initializes the camera and returns a ready-to-use controller
+  /// for the preview widget.
+  Future<Result<CameraController>> initialize(CameraDevice device);
 
   Future<Result<void>> dispose();
 
