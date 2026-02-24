@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Camera permission is required for capturing photos -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
     <application
         android:label="flutter_camera_sync"
         android:name="${applicationName}"

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:workmanager/workmanager.dart';
+import 'package:flutter_camera_sync/background/sync_worker.dart';
 import 'package:flutter_camera_sync/core/db/app_database.dart';
 import 'package:flutter_camera_sync/core/services/permission_service.dart';
 import 'package:flutter_camera_sync/core/storage/local_file_storage.dart';
@@ -14,6 +16,21 @@ import 'package:flutter_camera_sync/root_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Background sync worker: register a periodic task that will try to
+  // upload pending images whenever the device has a network connection.
+  await Workmanager().initialize(
+    callbackDispatcher,
+    isInDebugMode: false,
+  );
+
+  await Workmanager().registerPeriodicTask(
+    'sync-pending-task',
+    syncTaskName,
+    constraints: Constraints(
+      networkType: NetworkType.connected,
+    ),
+  );
 
   final permissionService = PermissionService();
   final cameraDataSource = CameraDataSource();
