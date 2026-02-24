@@ -1,49 +1,28 @@
 import 'package:dio/dio.dart';
-import 'package:path/path.dart' as p;
 
-/// Very small wrapper around Dio so that the rest of the code
-/// does not need to know about headers, base URLs, etc.
+/// Reusable Dio-based HTTP client for all API calls.
 ///
-/// You can change [baseUrl] and the endpoint path later when you
-/// integrate with your real backend.
+/// Use [dio] for low-level requests, or add convenience methods here.
+/// Configure [baseUrl] when all calls target the same host; otherwise
+/// use full URLs in requests.
 class DioClient {
   DioClient({
     Dio? dio,
-    String baseUrl = 'https://example.com/api',
+    String baseUrl = '',
+    Duration? connectTimeout,
+    Duration? receiveTimeout,
   }) : _dio = dio ??
             Dio(
               BaseOptions(
                 baseUrl: baseUrl,
-                connectTimeout: const Duration(seconds: 10),
-                receiveTimeout: const Duration(seconds: 30),
+                connectTimeout: connectTimeout ?? const Duration(seconds: 30),
+                receiveTimeout: receiveTimeout ?? const Duration(seconds: 30),
               ),
             );
 
   final Dio _dio;
 
-  /// Uploads a single image file.
-  ///
-  /// The concrete endpoint and form fields are placeholders.
-  /// Replace `/uploads/images` and the map keys with whatever your
-  /// backend expects once the API is ready.
-  Future<Response<dynamic>> uploadImage({
-    required String filePath,
-    required String batchId,
-  }) async {
-    final String fileName = p.basename(filePath);
-
-    final FormData formData = FormData.fromMap(<String, dynamic>{
-      'batchId': batchId,
-      'file': await MultipartFile.fromFile(
-        filePath,
-        filename: fileName,
-      ),
-    });
-
-    return _dio.post<dynamic>(
-      '/uploads/images',
-      data: formData,
-    );
-  }
+  /// Exposes the underlying [Dio] instance so API layers (e.g. ImgBB, other
+  /// backends) can perform requests with full control over URL, headers, and body.
+  Dio get dio => _dio;
 }
-
