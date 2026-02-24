@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_camera_sync/core/error/failure.dart';
-import 'package:flutter_camera_sync/core/network/dio_client.dart';
+import 'package:flutter_camera_sync/core/network/imgbb/imgbb_api.dart';
 import 'package:flutter_camera_sync/core/result/result.dart';
 import 'package:flutter_camera_sync/features/camera/domain/entities/upload_status.dart';
 import 'package:flutter_camera_sync/features/sync/domain/repositories/sync_repository.dart';
@@ -10,13 +10,13 @@ import '../../../../core/db/app_database.dart';
 import '../mappers/image_mappers.dart';
 
 /// Sync repository that reads pending images from Drift and uploads them
-/// using Dio. Items always remain in the local queue; we only change
-/// their status flags.
+/// via the provided image upload API (e.g. ImgBB). Items remain in the
+/// local queue; we only update their status flags.
 class SyncRepositoryImpl implements SyncRepository {
   final AppDatabase _db;
-  final DioClient _client;
+  final ImgBbApi _uploadApi;
 
-  SyncRepositoryImpl(this._db, this._client);
+  SyncRepositoryImpl(this._db, this._uploadApi);
 
   @override
   Future<Result<void>> syncPending() async {
@@ -43,10 +43,7 @@ class SyncRepositoryImpl implements SyncRepository {
         );
 
         try {
-          await _client.uploadImage(
-            filePath: image.filePath,
-            batchId: image.batchId ?? image.id,
-          );
+          await _uploadApi.uploadImage(image.filePath);
 
           // Mark as uploaded on success.
           await (_db.update(_db.images)..where((tbl) => tbl.id.equals(row.id)))

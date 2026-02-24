@@ -3,6 +3,8 @@ import 'package:workmanager/workmanager.dart';
 
 import 'package:flutter_camera_sync/core/db/app_database.dart';
 import 'package:flutter_camera_sync/core/network/dio_client.dart';
+import 'package:flutter_camera_sync/core/network/imgbb/imgbb_api.dart';
+import 'package:flutter_camera_sync/core/network/imgbb/imgbb_config.dart';
 import 'package:flutter_camera_sync/core/services/connectivity_service.dart';
 import 'package:flutter_camera_sync/core/usecase/use_case.dart';
 import 'package:flutter_camera_sync/features/sync/data/repositories/sync_repository_impl.dart';
@@ -26,8 +28,12 @@ void callbackDispatcher() {
     }
 
     final db = AppDatabase();
-    final client = DioClient();
-    final repository = SyncRepositoryImpl(db, client);
+    final dioClient = DioClient();
+    final imgBbApi = ImgBbApi(
+      dio: dioClient.dio,
+      apiKey: kImgBbApiKey,
+    );
+    final repository = SyncRepositoryImpl(db, imgBbApi);
     final syncUseCase = SyncPendingBatches(repository);
 
     await syncUseCase(const NoParams());

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_camera_sync/core/error/failure.dart';
+import 'package:flutter_camera_sync/core/result/result.dart';
 import 'package:flutter_camera_sync/core/services/permission_service.dart';
 import 'package:flutter_camera_sync/core/storage/local_file_storage.dart';
 import 'package:flutter_camera_sync/core/usecase/use_case.dart';
@@ -23,6 +25,7 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
   final CreateBatch _createBatch;
   final AddImageToBatch _addImageToBatch;
   final LocalFileStorage _fileStorage;
+  final SyncPendingBatches _syncPendingBatches;
 
   CameraBloc({
     required PermissionService permissionService,
@@ -35,6 +38,7 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     required CreateBatch createBatch,
     required AddImageToBatch addImageToBatch,
     required LocalFileStorage fileStorage,
+    required SyncPendingBatches syncPendingBatches,
   })  : _permissionService = permissionService,
         _getAvailableCameras = getAvailableCameras,
         _initializeCamera = initializeCamera,
@@ -45,6 +49,7 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
         _createBatch = createBatch,
         _addImageToBatch = addImageToBatch,
         _fileStorage = fileStorage,
+        _syncPendingBatches = syncPendingBatches,
         super(const CameraInitial()) {
     on<CameraStarted>(_onStarted);
     on<CameraStopped>(_onStopped);
@@ -245,6 +250,13 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
         isCapturing: false,
         lastCapturedImagePath: storedImage.filePath,
         currentBatch: batch,
+      ),
+    );
+
+    // Hybrid upload: try sync immediately in background; Workmanager will retry later if needed.
+    unawaited(
+      _syncPendingBatches(const NoParams()).catchError(
+        (Object _) => Result.failure(const UnexpectedFailure('Background sync failed')),
       ),
     );
   }

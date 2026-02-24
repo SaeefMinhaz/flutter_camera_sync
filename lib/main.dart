@@ -6,6 +6,8 @@ import 'package:flutter_camera_sync/core/db/app_database.dart';
 import 'package:flutter_camera_sync/core/services/permission_service.dart';
 import 'package:flutter_camera_sync/core/storage/local_file_storage.dart';
 import 'package:flutter_camera_sync/core/network/dio_client.dart';
+import 'package:flutter_camera_sync/core/network/imgbb/imgbb_api.dart';
+import 'package:flutter_camera_sync/core/network/imgbb/imgbb_config.dart';
 import 'package:flutter_camera_sync/features/camera/data/data.dart';
 import 'package:flutter_camera_sync/features/camera/domain/domain.dart';
 import 'package:flutter_camera_sync/features/camera/presentation/presentation.dart';
@@ -40,7 +42,11 @@ Future<void> main() async {
   final db = AppDatabase();
   final batchRepository = BatchRepositoryImpl(db);
   final dioClient = DioClient();
-  final syncRepository = SyncRepositoryImpl(db, dioClient);
+  final imgBbApi = ImgBbApi(
+    dio: dioClient.dio,
+    apiKey: kImgBbApiKey,
+  );
+  final syncRepository = SyncRepositoryImpl(db, imgBbApi);
 
   final getAvailableCameras = GetAvailableCameras(cameraRepository);
   final initializeCamera = InitializeCamera(cameraRepository);
@@ -117,6 +123,7 @@ class MyApp extends StatelessWidget {
             createBatch: createBatch,
             addImageToBatch: addImageToBatch,
             fileStorage: fileStorage,
+            syncPendingBatches: syncPendingBatches,
           ),
         ),
         BlocProvider<UploadQueueBloc>(
