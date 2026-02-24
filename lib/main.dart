@@ -16,6 +16,8 @@ Future<void> main() async {
   final initializeCamera = InitializeCamera(cameraRepository);
   final disposeCamera = DisposeCamera(cameraRepository);
   final captureImage = CaptureImage(cameraRepository);
+  final changeZoom = ChangeZoom(cameraRepository);
+  final setFocusPoint = SetFocusPoint(cameraRepository);
 
   runApp(
     MyApp(
@@ -24,6 +26,8 @@ Future<void> main() async {
       initializeCamera: initializeCamera,
       disposeCamera: disposeCamera,
       captureImage: captureImage,
+      changeZoom: changeZoom,
+      setFocusPoint: setFocusPoint,
     ),
   );
 }
@@ -36,6 +40,8 @@ class MyApp extends StatelessWidget {
     required this.initializeCamera,
     required this.disposeCamera,
     required this.captureImage,
+    required this.changeZoom,
+    required this.setFocusPoint,
   });
 
   final PermissionService permissionService;
@@ -43,6 +49,8 @@ class MyApp extends StatelessWidget {
   final InitializeCamera initializeCamera;
   final DisposeCamera disposeCamera;
   final CaptureImage captureImage;
+  final ChangeZoom changeZoom;
+  final SetFocusPoint setFocusPoint;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +61,8 @@ class MyApp extends StatelessWidget {
         initializeCamera: initializeCamera,
         disposeCamera: disposeCamera,
         captureImage: captureImage,
+        changeZoom: changeZoom,
+        setFocusPoint: setFocusPoint,
       ),
       child: MaterialApp(
         title: 'Camera Preview',

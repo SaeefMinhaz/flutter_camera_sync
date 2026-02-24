@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:camera/camera.dart';
 import 'package:flutter_camera_sync/core/error/failure.dart';
 import 'package:flutter_camera_sync/core/result/result.dart';
@@ -66,26 +68,83 @@ class CameraRepositoryImpl implements CameraRepository {
 
   @override
   Future<Result<bool>> isFocusSupported() async {
-    // This will be refined in the advanced controls feature.
-    return Result.success(false);
+    try {
+      final controller = _dataSource.controller;
+      if (controller == null || !controller.value.isInitialized) {
+        return Result.success(false);
+      }
+      return Result.success(controller.value.focusPointSupported);
+    } catch (e) {
+      return Result.failure(
+        CameraFailure('Unable to check focus support', cause: e),
+      );
+    }
   }
 
   @override
   Future<Result<bool>> isZoomSupported() async {
-    // This will be refined in the advanced controls feature.
-    return Result.success(false);
+    try {
+      final controller = _dataSource.controller;
+      if (controller == null || !controller.value.isInitialized) {
+        return Result.success(false);
+      }
+      final minZoom = await controller.getMinZoomLevel();
+      final maxZoom = await controller.getMaxZoomLevel();
+      return Result.success(maxZoom > minZoom);
+    } catch (e) {
+      return Result.failure(
+        CameraFailure('Unable to check zoom support', cause: e),
+      );
+    }
   }
 
   @override
   Future<Result<void>> setZoom(double level) async {
-    // Zoom support is added in the advanced controls feature.
-    return Result.success(null);
+    try {
+      final controller = _dataSource.controller;
+      if (controller == null || !controller.value.isInitialized) {
+        return Result.failure(
+          const CameraFailure('Camera is not ready for zoom.'),
+        );
+      }
+      await controller.setZoomLevel(level);
+      return Result.success(null);
+    } catch (e) {
+      return Result.failure(
+        CameraFailure('Unable to change zoom level', cause: e),
+      );
+    }
   }
 
   @override
   Future<Result<void>> setFocusPoint(FocusPoint point) async {
-    // Manual focus support is added in the advanced controls feature.
-    return Result.success(null);
+    try {
+      final controller = _dataSource.controller;
+      if (controller == null || !controller.value.isInitialized) {
+        return Result.failure(
+          const CameraFailure('Camera is not ready for focus.'),
+        );
+      }
+
+      if (!controller.value.focusPointSupported) {
+        return Result.failure(
+          const CameraFailure(
+            'Tap-to-focus is not supported on this device with this camera.',
+          ),
+        );
+      }
+
+      final offset = Offset(point.x, point.y);
+      await controller.setFocusMode(FocusMode.auto);
+      await controller.setFocusPoint(offset);
+      await controller.setExposurePoint(offset);
+
+      return Result.success(null);
+    } catch (e) {
+      return Result.failure(
+        CameraFailure('Unable to set focus point', cause: e),
+      );
+    }
   }
 
   @override

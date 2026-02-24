@@ -39,5 +39,29 @@ class CameraDataSource {
     }
     return controller.takePicture();
   }
+
+  Future<double> getMinZoomLevel() async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) {
+      throw StateError('Camera is not ready');
+    }
+    return controller.getMinZoomLevel();
+  }
+
+  Future<double> getMaxZoomLevel() async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) {
+      throw StateError('Camera is not ready');
+    }
+    return controller.getMaxZoomLevel();
+  }
+
+  Future<void> setZoomLevel(double zoom) async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) {
+      throw StateError('Camera is not ready');
+    }
+    await controller.setZoomLevel(zoom);
+  }
 }
 
