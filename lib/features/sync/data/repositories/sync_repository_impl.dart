@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_camera_sync/core/error/failure.dart';
@@ -34,6 +36,11 @@ class SyncRepositoryImpl implements SyncRepository {
       for (final Image row in pendingRows) {
         final image = imageFromRow(row);
 
+        dev.log(
+          'Uploading image: imageId=${image.id} batchId=${image.batchId} filePath=${image.filePath}',
+          name: 'SyncRepositoryImpl',
+        );
+
         // Mark as uploading before we hit the network.
         await (_db.update(_db.images)..where((tbl) => tbl.id.equals(row.id)))
             .write(
@@ -45,6 +52,11 @@ class SyncRepositoryImpl implements SyncRepository {
         try {
           await _uploadApi.uploadImage(image.filePath);
 
+          dev.log(
+            'Image upload success: imageId=${image.id} batchId=${image.batchId} filePath=${image.filePath}',
+            name: 'SyncRepositoryImpl',
+          );
+
           // Mark as uploaded on success.
           await (_db.update(_db.images)..where((tbl) => tbl.id.equals(row.id)))
               .write(
@@ -53,6 +65,13 @@ class SyncRepositoryImpl implements SyncRepository {
             ),
           );
         } on DioException catch (e) {
+          dev.log(
+            'Image upload DioException: imageId=${image.id} batchId=${image.batchId} type=${e.type} statusCode=${e.response?.statusCode}',
+            name: 'SyncRepositoryImpl',
+            error: e,
+            stackTrace: e.stackTrace,
+          );
+
           // Treat timeouts and connection problems as connectivity issues.
           if (_isConnectivityIssue(e)) {
             await (_db.update(_db.images)
@@ -79,7 +98,14 @@ class SyncRepositoryImpl implements SyncRepository {
               uploadStatus: Value(UploadStatus.failed.name),
             ),
           );
-        } catch (e) {
+        } catch (e, stack) {
+          dev.log(
+            'Image upload unexpected error: imageId=${image.id} batchId=${image.batchId} filePath=${image.filePath}',
+            name: 'SyncRepositoryImpl',
+            error: e,
+            stackTrace: stack,
+          );
+
           await (_db.update(_db.images)
                 ..where((tbl) => tbl.id.equals(row.id)))
               .write(

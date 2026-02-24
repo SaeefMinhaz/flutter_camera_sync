@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_camera_sync/features/camera/domain/entities/capture_batch.dart';
+import 'package:flutter_camera_sync/features/camera/domain/entities/captured_image.dart';
 import 'package:flutter_camera_sync/features/camera/domain/entities/upload_status.dart';
+import 'package:flutter_camera_sync/features/sync/domain/entities/batch_with_images.dart';
 import 'package:flutter_camera_sync/features/sync/presentation/bloc/upload_queue_bloc.dart';
 import 'package:flutter_camera_sync/features/sync/presentation/bloc/upload_queue_event.dart';
 import 'package:flutter_camera_sync/features/sync/presentation/bloc/upload_queue_state.dart';
@@ -62,8 +66,8 @@ class _PendingUploadsScreenState extends State<PendingUploadsScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 itemCount: state.batches.length,
                 itemBuilder: (BuildContext context, int index) {
-                  final batch = state.batches[index];
-                  return _BatchTile(batch: batch);
+                  final batchWithImages = state.batches[index];
+                  return _BatchTile(batchWithImages: batchWithImages);
                 },
               ),
             );
@@ -78,13 +82,15 @@ class _PendingUploadsScreenState extends State<PendingUploadsScreen> {
 
 class _BatchTile extends StatelessWidget {
   const _BatchTile({
-    required this.batch,
+    required this.batchWithImages,
   });
 
-  final CaptureBatch batch;
+  final BatchWithImages batchWithImages;
 
   @override
   Widget build(BuildContext context) {
+    final CaptureBatch batch = batchWithImages.batch;
+    final List<CapturedImage> images = batchWithImages.images;
     final theme = Theme.of(context);
     final createdAt = batch.createdAt;
     final createdText =
@@ -99,13 +105,44 @@ class _BatchTile extends StatelessWidget {
         : 'Batch ${batch.id.substring(batch.id.length - 4)}';
 
     return ListTile(
-      leading: const Icon(Icons.photo_library_outlined),
+      leading: _leadingThumbnail(images),
       title: Text(title),
-      subtitle: Text('Created $createdText'),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('Created $createdText'),
+          if (images.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: images
+                    .take(3)
+                    .map(
+                      (CapturedImage image) => Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: _ImageThumbnail(
+                          path: image.thumbnailPath ?? image.filePath,
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+        ],
+      ),
       trailing: Text(
         _statusLabel(batch.status),
         style: theme.textTheme.bodySmall,
       ),
+    );
+  }
+
+  Widget _leadingThumbnail(List<CapturedImage> images) {
+    if (images.isEmpty) {
+      return const Icon(Icons.photo_library_outlined);
+    }
+    return _ImageThumbnail(
+      path: images.first.thumbnailPath ?? images.first.filePath,
     );
   }
 
@@ -120,6 +157,43 @@ class _BatchTile extends StatelessWidget {
       case UploadStatus.failed:
         return 'Upload failed';
     }
+  }
+}
+
+class _ImageThumbnail extends StatelessWidget {
+  const _ImageThumbnail({
+    required this.path,
+  });
+
+  final String path;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: Image.file(
+        File(path),
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (
+          BuildContext context,
+          Object error,
+          StackTrace? stackTrace,
+        ) {
+          return Container(
+            width: 40,
+            height: 40,
+            color: Colors.grey.shade300,
+            child: const Icon(
+              Icons.broken_image_outlined,
+              size: 18,
+              color: Colors.black45,
+            ),
+          );
+        },
+      ),
+    );
   }
 }
 

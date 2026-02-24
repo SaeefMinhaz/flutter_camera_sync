@@ -1,3 +1,4 @@
+import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -32,6 +33,11 @@ class ImgBbApi {
   Future<ImgBbUploadResponse> uploadImage(String filePath) async {
     final file = File(filePath);
     if (!await file.exists()) {
+      dev.log(
+        'ImgBB upload failed: file does not exist',
+        name: 'ImgBbApi',
+        error: 'filePath=$filePath',
+      );
       throw DioException(
         requestOptions: RequestOptions(path: filePath),
         type: DioExceptionType.badResponse,
@@ -40,6 +46,11 @@ class ImgBbApi {
     }
 
     final String fileName = p.basename(filePath);
+
+    dev.log(
+      'Starting ImgBB upload: filePath=$filePath fileName=$fileName',
+      name: 'ImgBbApi',
+    );
 
     final FormData formData = FormData.fromMap(<String, dynamic>{
       'image': await MultipartFile.fromFile(
@@ -63,6 +74,11 @@ class ImgBbApi {
     );
 
     if (response.data == null) {
+      dev.log(
+        'ImgBB upload failed: empty response',
+        name: 'ImgBbApi',
+        error: 'statusCode=${response.statusCode}',
+      );
       throw DioException(
         requestOptions: response.requestOptions,
         response: response,
@@ -74,6 +90,10 @@ class ImgBbApi {
     final ImgBbUploadResponse result = ImgBbUploadResponse.fromJson(response.data!);
 
     if (!result.success || response.statusCode != 200) {
+      dev.log(
+        'ImgBB upload failed: statusCode=${response.statusCode} success=${result.success} url=${result.data?.url}',
+        name: 'ImgBbApi',
+      );
       throw DioException(
         requestOptions: response.requestOptions,
         response: response,
@@ -81,6 +101,11 @@ class ImgBbApi {
         error: 'imgBB upload failed: ${response.statusCode}',
       );
     }
+
+    dev.log(
+      'ImgBB upload success: statusCode=${response.statusCode} url=${result.data?.url} displayUrl=${result.data?.displayUrl}',
+      name: 'ImgBbApi',
+    );
 
     return result;
   }
