@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_camera_sync/features/camera/presentation/presentation.dart';
 import 'package:flutter_camera_sync/features/sync/presentation/presentation.dart';
+import 'package:flutter_camera_sync/features/sync/presentation/bloc/upload_queue_bloc.dart';
+import 'package:flutter_camera_sync/features/sync/presentation/bloc/upload_queue_event.dart';
 
 class RootShell extends StatefulWidget {
   const RootShell({super.key});
@@ -30,6 +33,14 @@ class _RootShellState extends State<RootShell> {
           setState(() {
             _currentIndex = index;
           });
+
+          if (index == 1) {
+            // When switching to the Pending tab, refresh the upload queue
+            // so the list always reflects the latest local database state.
+            context
+                .read<UploadQueueBloc>()
+                .add(const UploadQueueRefreshed());
+          }
         },
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
