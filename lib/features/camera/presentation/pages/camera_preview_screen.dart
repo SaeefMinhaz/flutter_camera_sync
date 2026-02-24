@@ -1,5 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_camera_sync/features/camera/presentation/bloc/camera_bloc.dart';
 import 'package:flutter_camera_sync/features/camera/presentation/bloc/camera_event.dart';
@@ -16,14 +17,15 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
   @override
   void initState() {
     super.initState();
-    // Kick off camera initialization once the widget is ready.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<CameraBloc>().add(const CameraStarted());
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     });
   }
 
   @override
   void dispose() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     context.read<CameraBloc>().add(const CameraStopped());
     super.dispose();
   }
@@ -32,31 +34,29 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: BlocBuilder<CameraBloc, CameraState>(
-          builder: (BuildContext context, CameraState state) {
-            if (state is CameraLoading || state is CameraInitial) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            }
+      body: BlocBuilder<CameraBloc, CameraState>(
+        builder: (BuildContext context, CameraState state) {
+          if (state is CameraLoading || state is CameraInitial) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
 
-            if (state is CameraFailureState) {
-              return _ErrorView(
-                message: state.message,
-                onRetry: () {
-                  context.read<CameraBloc>().add(const CameraStarted());
-                },
-              );
-            }
+          if (state is CameraFailureState) {
+            return _ErrorView(
+              message: state.message,
+              onRetry: () {
+                context.read<CameraBloc>().add(const CameraStarted());
+              },
+            );
+          }
 
-            if (state is CameraReady) {
-              return _CameraReadyView(state: state);
-            }
+          if (state is CameraReady) {
+            return _CameraReadyView(state: state);
+          }
 
-            return const SizedBox.shrink();
-          },
-        ),
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
@@ -96,9 +96,17 @@ class _CameraReadyViewState extends State<_CameraReadyView> {
 
         Widget preview;
         if (controller.value.isInitialized) {
-          preview = Center(
-            child: AspectRatio(
-              aspectRatio: controller.value.aspectRatio,
+          final previewSize = controller.value.previewSize;
+          final double previewWidth =
+              previewSize != null ? previewSize.height : width;
+          final double previewHeight =
+              previewSize != null ? previewSize.width : height;
+
+          preview = FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: previewWidth,
+              height: previewHeight,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onScaleStart: (ScaleStartDetails details) {
@@ -171,57 +179,61 @@ class _CameraReadyViewState extends State<_CameraReadyView> {
               ),
             Align(
               alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 24, left: 16, right: 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    if (state.isZoomSupported &&
-                        (state.maxZoom - state.minZoom) > 0.1)
-                      Column(
-                        children: <Widget>[
-                          Slider(
-                            value: state.currentZoom.clamp(
-                              state.minZoom,
-                              state.maxZoom,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.only(bottom: 24, left: 16, right: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if (state.isZoomSupported &&
+                          (state.maxZoom - state.minZoom) > 0.1)
+                        Column(
+                          children: <Widget>[
+                            Slider(
+                              value: state.currentZoom.clamp(
+                                state.minZoom,
+                                state.maxZoom,
+                              ),
+                              min: state.minZoom,
+                              max: state.maxZoom,
+                              onChanged: (double value) {
+                                context
+                                    .read<CameraBloc>()
+                                    .add(CameraZoomChanged(value));
+                              },
                             ),
-                            min: state.minZoom,
-                            max: state.maxZoom,
-                            onChanged: (double value) {
-                              context
-                                  .read<CameraBloc>()
-                                  .add(CameraZoomChanged(value));
-                            },
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: _buildZoomPresets(state, context),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                      ),
-                    if (state.lastCapturedImagePath != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          'Saved: ${state.lastCapturedImagePath}',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: _buildZoomPresets(state, context),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
                         ),
+                      if (state.lastCapturedImagePath != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            'Saved: ${state.lastCapturedImagePath}',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      _CaptureButton(
+                        isCapturing: state.isCapturing,
+                        onPressed: () {
+                          context
+                              .read<CameraBloc>()
+                              .add(const CameraCapturePressed());
+                        },
                       ),
-                    _CaptureButton(
-                      isCapturing: state.isCapturing,
-                      onPressed: () {
-                        context
-                            .read<CameraBloc>()
-                            .add(const CameraCapturePressed());
-                      },
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
