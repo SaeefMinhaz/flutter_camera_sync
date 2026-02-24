@@ -90,12 +90,12 @@ class SyncRepositoryImpl implements SyncRepository {
             );
           }
 
-          // Server or other unexpected HTTP errors.
+          // Server or other unexpected HTTP errors: keep as pending for retry.
           await (_db.update(_db.images)
                 ..where((tbl) => tbl.id.equals(row.id)))
               .write(
             ImagesCompanion(
-              uploadStatus: Value(UploadStatus.failed.name),
+              uploadStatus: Value(UploadStatus.pending.name),
             ),
           );
         } catch (e, stack) {
@@ -106,11 +106,12 @@ class SyncRepositoryImpl implements SyncRepository {
             stackTrace: stack,
           );
 
+          // Keep as pending for retry.
           await (_db.update(_db.images)
                 ..where((tbl) => tbl.id.equals(row.id)))
               .write(
             ImagesCompanion(
-              uploadStatus: Value(UploadStatus.failed.name),
+              uploadStatus: Value(UploadStatus.pending.name),
             ),
           );
         }
