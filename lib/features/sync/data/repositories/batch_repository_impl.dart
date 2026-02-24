@@ -4,6 +4,7 @@ import 'package:flutter_camera_sync/core/result/result.dart';
 import 'package:flutter_camera_sync/features/camera/domain/entities/capture_batch.dart';
 import 'package:flutter_camera_sync/features/camera/domain/entities/captured_image.dart';
 import 'package:flutter_camera_sync/features/camera/domain/entities/upload_status.dart';
+import 'package:flutter_camera_sync/features/sync/domain/entities/batch_with_images.dart';
 import 'package:flutter_camera_sync/features/sync/domain/repositories/batch_repository.dart';
 
 import '../../../../core/db/app_database.dart';
@@ -77,6 +78,46 @@ class BatchRepositoryImpl implements BatchRepository {
       return Result.success(batches);
     } catch (e) {
       return mapDriftError<List<CaptureBatch>>(e);
+    }
+  }
+
+  @override
+  Future<Result<List<BatchWithImages>>> getPendingBatchesWithImages() async {
+    try {
+      final batchRows = await (_db.select(_db.batches)
+            ..where(
+              (tbl) => tbl.status.equals(uploadStatusToDb(UploadStatus.pending)),
+            ))
+          .get();
+
+      if (batchRows.isEmpty) {
+        return Result.success(<BatchWithImages>[]);
+      }
+
+      final List<BatchWithImages> result = <BatchWithImages>[];
+
+      for (final Batch batchRow in batchRows) {
+        final CaptureBatch batch = batchFromRow(batchRow);
+
+        final List<Image> imageRows = await (_db.select(_db.images)
+              ..where((tbl) => tbl.batchId.equals(batch.id)))
+            .get();
+
+        final List<CapturedImage> images = imageRows
+            .map<CapturedImage>((Image row) => imageFromRow(row))
+            .toList();
+
+        result.add(
+          BatchWithImages(
+            batch: batch,
+            images: images,
+          ),
+        );
+      }
+
+      return Result.success(result);
+    } catch (e) {
+      return mapDriftError<List<BatchWithImages>>(e);
     }
   }
 

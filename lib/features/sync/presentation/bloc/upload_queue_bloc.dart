@@ -7,11 +7,11 @@ import 'upload_queue_event.dart';
 import 'upload_queue_state.dart';
 
 class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
-  final GetPendingBatches _getPendingBatches;
+  final GetPendingBatchesWithImages _getPendingBatchesWithImages;
 
   UploadQueueBloc({
-    required GetPendingBatches getPendingBatches,
-  })  : _getPendingBatches = getPendingBatches,
+    required GetPendingBatchesWithImages getPendingBatchesWithImages,
+  })  : _getPendingBatchesWithImages = getPendingBatchesWithImages,
         super(const UploadQueueInitial()) {
     on<UploadQueueStarted>(_onLoad);
     on<UploadQueueRefreshed>(_onLoad);
@@ -23,7 +23,7 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
   ) async {
     emit(const UploadQueueLoading());
 
-    final result = await _getPendingBatches(const NoParams());
+    final result = await _getPendingBatchesWithImages(const NoParams());
     if (result.isFailure || result.value == null) {
       final failure = result.failure;
       emit(

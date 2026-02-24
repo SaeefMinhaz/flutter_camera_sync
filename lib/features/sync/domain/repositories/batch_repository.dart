@@ -3,6 +3,7 @@ import 'package:flutter_camera_sync/core/result/result.dart';
 import '../../../camera/domain/entities/capture_batch.dart';
 import '../../../camera/domain/entities/captured_image.dart';
 import '../../../camera/domain/entities/upload_status.dart';
+import '../entities/batch_with_images.dart';
 
 /// Handles creation and persistence of batches and their images.
 abstract class BatchRepository {
@@ -14,6 +15,9 @@ abstract class BatchRepository {
   });
 
   Future<Result<List<CaptureBatch>>> getPendingBatches();
+
+  /// Returns all pending batches together with their images.
+  Future<Result<List<BatchWithImages>>> getPendingBatchesWithImages();
 
   Future<Result<CaptureBatch?>> getBatchById(String id);
 

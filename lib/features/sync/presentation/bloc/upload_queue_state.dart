@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:flutter_camera_sync/features/camera/domain/entities/capture_batch.dart';
+import 'package:flutter_camera_sync/features/sync/domain/entities/batch_with_images.dart';
 
 abstract class UploadQueueState extends Equatable {
   const UploadQueueState();
@@ -30,7 +30,7 @@ class UploadQueueFailureState extends UploadQueueState {
 }
 
 class UploadQueueLoaded extends UploadQueueState {
-  final List<CaptureBatch> batches;
+  final List<BatchWithImages> batches;
 
   const UploadQueueLoaded(this.batches);
 

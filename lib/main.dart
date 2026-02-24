@@ -56,7 +56,8 @@ Future<void> main() async {
   final setFocusPoint = SetFocusPoint(cameraRepository);
   final createBatch = CreateBatch(batchRepository);
   final addImageToBatch = AddImageToBatch(batchRepository);
-  final getPendingBatches = GetPendingBatches(batchRepository);
+  final getPendingBatchesWithImages =
+      GetPendingBatchesWithImages(batchRepository);
   final syncPendingBatches = SyncPendingBatches(syncRepository);
 
   runApp(
@@ -70,7 +71,7 @@ Future<void> main() async {
       setFocusPoint: setFocusPoint,
       createBatch: createBatch,
       addImageToBatch: addImageToBatch,
-      getPendingBatches: getPendingBatches,
+      getPendingBatchesWithImages: getPendingBatchesWithImages,
       fileStorage: fileStorage,
       syncPendingBatches: syncPendingBatches,
     ),
@@ -89,7 +90,7 @@ class MyApp extends StatelessWidget {
     required this.setFocusPoint,
     required this.createBatch,
     required this.addImageToBatch,
-    required this.getPendingBatches,
+    required this.getPendingBatchesWithImages,
     required this.fileStorage,
     required this.syncPendingBatches,
   });
@@ -103,7 +104,7 @@ class MyApp extends StatelessWidget {
   final SetFocusPoint setFocusPoint;
   final CreateBatch createBatch;
   final AddImageToBatch addImageToBatch;
-  final GetPendingBatches getPendingBatches;
+  final GetPendingBatchesWithImages getPendingBatchesWithImages;
   final LocalFileStorage fileStorage;
   final SyncPendingBatches syncPendingBatches;
 
@@ -128,7 +129,7 @@ class MyApp extends StatelessWidget {
         ),
         BlocProvider<UploadQueueBloc>(
           create: (BuildContext context) => UploadQueueBloc(
-            getPendingBatches: getPendingBatches,
+            getPendingBatchesWithImages: getPendingBatchesWithImages,
           ),
         ),
       ],
