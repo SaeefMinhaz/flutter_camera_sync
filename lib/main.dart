@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_camera_sync/core/db/app_database.dart';
 import 'package:flutter_camera_sync/core/services/permission_service.dart';
 import 'package:flutter_camera_sync/core/storage/local_file_storage.dart';
+import 'package:flutter_camera_sync/core/network/dio_client.dart';
 import 'package:flutter_camera_sync/features/camera/data/data.dart';
 import 'package:flutter_camera_sync/features/camera/domain/domain.dart';
 import 'package:flutter_camera_sync/features/camera/presentation/presentation.dart';
@@ -21,6 +22,8 @@ Future<void> main() async {
 
   final db = AppDatabase();
   final batchRepository = BatchRepositoryImpl(db);
+  final dioClient = DioClient();
+  final syncRepository = SyncRepositoryImpl(db, dioClient);
 
   final getAvailableCameras = GetAvailableCameras(cameraRepository);
   final initializeCamera = InitializeCamera(cameraRepository);
@@ -31,6 +34,7 @@ Future<void> main() async {
   final createBatch = CreateBatch(batchRepository);
   final addImageToBatch = AddImageToBatch(batchRepository);
   final getPendingBatches = GetPendingBatches(batchRepository);
+  final syncPendingBatches = SyncPendingBatches(syncRepository);
 
   runApp(
     MyApp(
@@ -45,6 +49,7 @@ Future<void> main() async {
       addImageToBatch: addImageToBatch,
       getPendingBatches: getPendingBatches,
       fileStorage: fileStorage,
+      syncPendingBatches: syncPendingBatches,
     ),
   );
 }
@@ -63,6 +68,7 @@ class MyApp extends StatelessWidget {
     required this.addImageToBatch,
     required this.getPendingBatches,
     required this.fileStorage,
+    required this.syncPendingBatches,
   });
 
   final PermissionService permissionService;
@@ -76,6 +82,7 @@ class MyApp extends StatelessWidget {
   final AddImageToBatch addImageToBatch;
   final GetPendingBatches getPendingBatches;
   final LocalFileStorage fileStorage;
+  final SyncPendingBatches syncPendingBatches;
 
   @override
   Widget build(BuildContext context) {
