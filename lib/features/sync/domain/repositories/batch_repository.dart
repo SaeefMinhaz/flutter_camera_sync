@@ -19,6 +19,9 @@ abstract class BatchRepository {
   /// Returns all pending batches together with their images.
   Future<Result<List<BatchWithImages>>> getPendingBatchesWithImages();
 
+  /// Returns all batches (any status) together with their images.
+  Future<Result<List<BatchWithImages>>> getAllBatchesWithImages();
+
   Future<Result<CaptureBatch?>> getBatchById(String id);
 
   Future<Result<void>> updateBatchStatus(

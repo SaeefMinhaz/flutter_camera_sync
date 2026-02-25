@@ -122,6 +122,42 @@ class BatchRepositoryImpl implements BatchRepository {
   }
 
   @override
+  Future<Result<List<BatchWithImages>>> getAllBatchesWithImages() async {
+    try {
+      final batchRows = await _db.select(_db.batches).get();
+
+      if (batchRows.isEmpty) {
+        return Result.success(<BatchWithImages>[]);
+      }
+
+      final List<BatchWithImages> result = <BatchWithImages>[];
+
+      for (final Batch batchRow in batchRows) {
+        final CaptureBatch batch = batchFromRow(batchRow);
+
+        final List<Image> imageRows = await (_db.select(_db.images)
+              ..where((tbl) => tbl.batchId.equals(batch.id)))
+            .get();
+
+        final List<CapturedImage> images = imageRows
+            .map<CapturedImage>((Image row) => imageFromRow(row))
+            .toList();
+
+        result.add(
+          BatchWithImages(
+            batch: batch,
+            images: images,
+          ),
+        );
+      }
+
+      return Result.success(result);
+    } catch (e) {
+      return mapDriftError<List<BatchWithImages>>(e);
+    }
+  }
+
+  @override
   Future<Result<CaptureBatch?>> getBatchById(String id) async {
     try {
       final row = await (_db.select(_db.batches)..where((tbl) => tbl.id.equals(id)))

@@ -56,8 +56,9 @@ Future<void> main() async {
   final setFocusPoint = SetFocusPoint(cameraRepository);
   final createBatch = CreateBatch(batchRepository);
   final addImageToBatch = AddImageToBatch(batchRepository);
-  final getPendingBatchesWithImages =
-      GetPendingBatchesWithImages(batchRepository);
+  final getAllBatchesWithImages =
+      GetAllBatchesWithImages(batchRepository);
+  final deleteBatch = DeleteBatch(batchRepository);
   final syncPendingBatches = SyncPendingBatches(syncRepository);
 
   runApp(
@@ -71,7 +72,8 @@ Future<void> main() async {
       setFocusPoint: setFocusPoint,
       createBatch: createBatch,
       addImageToBatch: addImageToBatch,
-      getPendingBatchesWithImages: getPendingBatchesWithImages,
+      getAllBatchesWithImages: getAllBatchesWithImages,
+      deleteBatch: deleteBatch,
       fileStorage: fileStorage,
       syncPendingBatches: syncPendingBatches,
     ),
@@ -90,7 +92,8 @@ class MyApp extends StatelessWidget {
     required this.setFocusPoint,
     required this.createBatch,
     required this.addImageToBatch,
-    required this.getPendingBatchesWithImages,
+    required this.getAllBatchesWithImages,
+    required this.deleteBatch,
     required this.fileStorage,
     required this.syncPendingBatches,
   });
@@ -104,7 +107,8 @@ class MyApp extends StatelessWidget {
   final SetFocusPoint setFocusPoint;
   final CreateBatch createBatch;
   final AddImageToBatch addImageToBatch;
-  final GetPendingBatchesWithImages getPendingBatchesWithImages;
+  final GetAllBatchesWithImages getAllBatchesWithImages;
+  final DeleteBatch deleteBatch;
   final LocalFileStorage fileStorage;
   final SyncPendingBatches syncPendingBatches;
 
@@ -129,7 +133,8 @@ class MyApp extends StatelessWidget {
         ),
         BlocProvider<UploadQueueBloc>(
           create: (BuildContext context) => UploadQueueBloc(
-            getPendingBatchesWithImages: getPendingBatchesWithImages,
+            getAllBatchesWithImages: getAllBatchesWithImages,
+            deleteBatch: deleteBatch,
           ),
         ),
       ],

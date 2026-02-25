@@ -15,3 +15,12 @@ class UploadQueueRefreshed extends UploadQueueEvent {
   const UploadQueueRefreshed();
 }
 
+class UploadQueueBatchDeleted extends UploadQueueEvent {
+  final String batchId;
+
+  const UploadQueueBatchDeleted(this.batchId);
+
+  @override
+  List<Object?> get props => <Object?>[batchId];
+}
+
