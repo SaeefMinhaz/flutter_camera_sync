@@ -30,7 +30,7 @@ class _PendingUploadsScreenState extends State<PendingUploadsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pending Uploads'),
+        title: const Text('Batches'),
       ),
       body: BlocBuilder<UploadQueueBloc, UploadQueueState>(
         builder: (BuildContext context, UploadQueueState state) {
@@ -130,9 +130,50 @@ class _BatchTile extends StatelessWidget {
             ),
         ],
       ),
-      trailing: Text(
-        _statusLabel(batch.status),
-        style: theme.textTheme.bodySmall,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            _statusLabel(batch.status),
+            style: theme.textTheme.bodySmall,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Delete batch',
+            onPressed: () async {
+              final bool? confirmed = await showDialog<bool>(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: const Text('Delete batch'),
+                    content: Text(
+                      'Delete this batch and all its images?\n\n$title',
+                    ),
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text(
+                          'Delete',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+
+              if (confirmed == true) {
+                context
+                    .read<UploadQueueBloc>()
+                    .add(UploadQueueBatchDeleted(batch.id));
+              }
+            },
+          ),
+        ],
       ),
     );
   }
