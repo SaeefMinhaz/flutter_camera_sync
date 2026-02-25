@@ -64,6 +64,7 @@ class CameraReady extends CameraState {
     bool? isFocusSupported,
     Offset? focusPoint,
     CaptureBatch? currentBatch,
+    bool resetBatch = false,
   }) {
     return CameraReady(
       controller: controller ?? this.controller,
@@ -76,7 +77,7 @@ class CameraReady extends CameraState {
       isZoomSupported: isZoomSupported ?? this.isZoomSupported,
       isFocusSupported: isFocusSupported ?? this.isFocusSupported,
       focusPoint: focusPoint ?? this.focusPoint,
-      currentBatch: currentBatch ?? this.currentBatch,
+      currentBatch: resetBatch ? null : (currentBatch ?? this.currentBatch),
     );
   }
 

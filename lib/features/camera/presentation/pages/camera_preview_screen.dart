@@ -211,6 +211,23 @@ class _CameraReadyViewState extends State<_CameraReadyView> {
                             const SizedBox(height: 8),
                           ],
                         ),
+                      if (state.currentBatch != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white),
+                            ),
+                            onPressed: () {
+                              context
+                                  .read<CameraBloc>()
+                                  .add(const CameraNewBatchRequested());
+                            },
+                            icon: const Icon(Icons.fiber_new, size: 18),
+                            label: const Text('New batch'),
+                          ),
+                        ),
                       if (state.lastCapturedImagePath != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),

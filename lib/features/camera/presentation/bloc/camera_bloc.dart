@@ -54,6 +54,7 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     on<CameraStarted>(_onStarted);
     on<CameraStopped>(_onStopped);
     on<CameraCapturePressed>(_onCapturePressed);
+    on<CameraNewBatchRequested>(_onNewBatchRequested);
     on<CameraZoomChanged>(_onZoomChanged);
     on<CameraFocusRequested>(_onFocusRequested);
   }
@@ -257,6 +258,23 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     unawaited(
       _syncPendingBatches(const NoParams()).catchError(
         (Object _) => Result.failure(const UnexpectedFailure('Background sync failed')),
+      ),
+    );
+  }
+
+  Future<void> _onNewBatchRequested(
+    CameraNewBatchRequested event,
+    Emitter<CameraState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! CameraReady) {
+      return;
+    }
+
+    emit(
+      currentState.copyWith(
+        resetBatch: true,
+        lastCapturedImagePath: null,
       ),
     );
   }

@@ -19,6 +19,10 @@ class CameraCapturePressed extends CameraEvent {
   const CameraCapturePressed();
 }
 
+class CameraNewBatchRequested extends CameraEvent {
+  const CameraNewBatchRequested();
+}
+
 class CameraZoomChanged extends CameraEvent {
   final double zoom;
 
