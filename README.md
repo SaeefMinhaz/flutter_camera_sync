@@ -1,217 +1,170 @@
-# Flutter Camera Sync
+# Flutter Camera Sync – Advanced Camera & Sync Engine
 
-A Flutter app that captures photos, queues them in batches, and uploads them to [imgBB](https://imgbb.com/) with a resilient sync engine that works offline and retries on failure.
-
----
-
-## 1. Business Requirements
-
-### 1.1 Core Features
-
-- **Camera capture**: Full-screen camera with pinch-to-zoom, tap-to-focus, and capture button. Photos are stored locally and grouped into batches.
-- **Batch-based upload queue**: Each capture session uses a batch. Images are added to the current batch and queued for upload with status: `pending` → `uploading` → `uploaded` (or kept `pending` on failure for retry).
-- **Image upload to imgBB**: Upload uses the [imgBB API](https://api.imgbb.com/) via **Dio** with **multipart/form-data**. A shared Dio client is used so other APIs can be added later.
-- **Pending screen**: Users see all pending batches with small image previews. Refreshing or opening the tab reloads data from the local database. Failed or network-blocked uploads stay **pending** and are retried.
-
-### 1.2 Non-Functional Requirements
-
-- **Offline-first**: Capture and queue work without network. Upload runs when the app is online (immediately after capture when possible, or in the background).
-- **Resilient sync**: If upload fails (network, API error, or any exception), the image is set back to **pending** so it is retried on the next sync (hybrid or background), without losing data.
-- **Background upload**: A periodic background task (Workmanager, ~15 min, when connected) uploads pending images so uploads continue even when the app is closed.
+A Flutter app that implements a **custom camera UI** with zoom and tap-to-focus, **batch-based image capture**, and a **resilient sync engine** that uploads images to [imgBB](https://imgbb.com/) via Dio. Built with **Clean Architecture + BLoC**, local SQLite (Drift), and a background worker (Workmanager) for automatic retry when connectivity is restored.
 
 ---
 
-## 2. Technical Implementation
+## 1. Project Title and Description
 
-### 2.1 Architecture Overview
+- **Title:** Flutter Camera Sync – Advanced Camera & Sync Engine  
+- **Business requirement (Task 2: Advanced Camera & Sync Engine):**
+  - **Custom Camera UI** — Camera preview screen (`CameraPreviewScreen`).
+    - **Zoom:** Pinch-to-zoom, a slider, and rounded preset buttons (0.5x, 1x, …) for available back cameras.
+    - **Manual focus:** Tap-to-focus with a visual indicator at the tap point.
+  - **Batch management** — Capture multiple batches of images. A **“New batch”** button starts a new batch; subsequent captures attach to the current batch. Show a list of all batches (“Batches” / Pending Uploads screen) with status (pending, uploading, uploaded, failed), image previews, and delete-with-confirmation.
+  - **Resilient sync engine:**
+    - Background worker (**Workmanager**) runs periodically when the device is connected.
+    - If the API call fails (low bandwidth, no internet), images remain in the local queue.
+    - Upload is retried automatically once a stable connection is detected, without user intervention.
+  - **Feedback:** Full-screen camera, status labels per batch, and immediate or background upload to imgBB.
 
-The app follows **Clean Architecture** with feature-based modules:
-
-- **Core**: Shared infrastructure (database, network, storage, services, result/use-case base).
-- **Features**:
-  - **Camera**: Capture, preview, zoom, focus; depends on camera domain + sync domain for batching.
-  - **Sync**: Batches, upload queue, sync to imgBB; depends on camera entities (e.g. `UploadStatus`, `CapturedImage`).
-
-Each feature is split into:
-
-- **Domain**: Entities, repository interfaces (abstract classes), use cases. No Flutter or external packages (except equatable/core types).
-- **Data**: Repository implementations, data sources, mappers (DB ↔ domain).
-- **Presentation**: BLoC (events/states), screens, UI.
-
-### 2.2 State Management: BLoC
-
-- **CameraBloc**  
-  - **Events**: `CameraStarted`, `CameraStopped`, `CameraCapturePressed`, `CameraZoomChanged`, `CameraFocusRequested`.  
-  - **States**: `CameraInitial`, `CameraLoading`, `CameraFailureState`, `CameraReady`.  
-  - Handles camera lifecycle, capture flow, create batch / add image to batch, and triggers a **fire-and-forget** sync after each successful capture (hybrid upload).
-
-- **UploadQueueBloc**  
-  - **Events**: `UploadQueueStarted`, `UploadQueueRefreshed`.  
-  - **States**: `UploadQueueInitial`, `UploadQueueLoading`, `UploadQueueEmpty`, `UploadQueueFailureState`, `UploadQueueLoaded(batches)`.  
-  - Loads pending batches with images via `GetPendingBatchesWithImages` for the Pending screen. Refreshed when the user opens the Pending tab.
-
-### 2.3 Clean Architecture Layers
-
-| Layer        | Camera feature                          | Sync feature                                      |
-|-------------|-----------------------------------------|---------------------------------------------------|
-| **Domain**  | Entities: `CapturedImage`, `CaptureBatch`, `CameraDevice`, `FocusPoint`, `UploadStatus`. Repositories: `CameraRepository`. Use cases: `GetAvailableCameras`, `InitializeCamera`, `DisposeCamera`, `CaptureImage`, `ChangeZoom`, `SetFocusPoint`. | Entities: `BatchWithImages`. Repositories: `BatchRepository`, `SyncRepository`. Use cases: `CreateBatch`, `AddImageToBatch`, `GetPendingBatches`, `GetPendingBatchesWithImages`, `SyncPendingBatches`. |
-| **Data**    | `CameraDataSource`, `CameraRepositoryImpl`.          | `BatchRepositoryImpl`, `SyncRepositoryImpl`; mappers for batch/image. |
-| **Presentation** | `CameraBloc`, `CameraPreviewScreen`.        | `UploadQueueBloc`, `PendingUploadsScreen`.        |
-
-Dependencies point inward: presentation → domain ← data. Use cases depend only on repository abstractions.
-
-### 2.4 Local Database (Drift)
-
-- **Location**: `lib/core/db/app_database.dart` (schema), `app_database.g.dart` (generated).
-- **Tables**:
-  - **Batches**: `id`, `createdAt`, `label`, `status` (pending | uploading | uploaded | failed).
-  - **Images**: `id`, `filePath`, `capturedAt`, `batchId` (FK), `thumbnailPath`, `width`, `height`, `deviceName`, `uploadStatus` (pending | uploading | uploaded | failed).
-- **Usage**: Batch and sync repositories read/write batches and images; sync updates `uploadStatus` and batch `status` after upload success or failure (failure → set image back to `pending`).
-
-### 2.5 Networking and Upload
-
-- **DioClient** (`lib/core/network/dio_client.dart`): Reusable Dio instance (optional `baseUrl`, timeouts). Exposes `dio` for use by any API layer.
-- **ImgBB API** (`lib/core/network/imgbb/`):
-  - `ImgBbApi`: Takes `Dio` and API key; `uploadImage(filePath)` sends multipart/form-data to `https://api.imgbb.com/1/upload?key=...`.
-  - `ImgBbUploadResponse` / `ImgBbImageData`: Response models (e.g. `url`, `displayUrl`).
-  - `imgbb_config.dart`: API key via `kImgBbApiKey` (override with `--dart-define=IMGBB_API_KEY=...`).
-- **SyncRepositoryImpl**: Loads images with `uploadStatus == pending`, marks as uploading, calls `ImgBbApi.uploadImage`, then marks uploaded or (on any failure) **pending** again for retry.
-
-### 2.6 Background Sync (Workmanager)
-
-- **Registration**: In `main.dart`, after `WidgetsFlutterBinding.ensureInitialized()`, `Workmanager().initialize(callbackDispatcher)` and `registerPeriodicTask('sync-pending-task', syncTaskName, constraints: NetworkType.connected)`.
-- **Interval**: Default periodic interval is 15 minutes (Workmanager minimum). Task runs only when the device is considered connected.
-- **Worker** (`lib/background/sync_worker.dart`): Entry point `callbackDispatcher` → `executeTask`. Checks connectivity via `ConnectivityService`; if offline, returns without changing data. If online, builds `AppDatabase`, `DioClient`, `ImgBbApi`, `SyncRepositoryImpl`, `SyncPendingBatches` and runs `syncPending()`. Individual failures are reflected in DB status (e.g. pending for retry); the task still reports success so Workmanager continues to schedule runs.
-
-### 2.7 Resilient Sync Engine
-
-- **Hybrid upload**: Right after a successful capture and add-to-batch, the app triggers `SyncPendingBatches` in a **fire-and-forget** way (no await). If the network is available, pending images (including the one just captured) upload quickly; if not, they remain pending.
-- **Failure handling**: On **any** upload failure (network, API error, or other exception), the image is set back to **pending** (not failed), so:
-  - Next time the user opens the Pending tab, they see the batch and images; refreshing loads from DB.
-  - Next sync (same session, or background run) will retry those pending images.
-- **No data loss**: Images stay in the local DB until uploaded; status transitions are pending ↔ uploading → uploaded, with failures falling back to pending.
+The flow spans two main screens: **Camera** (preview, capture, new batch) and **Batches** (list with thumbnails, status, delete).
 
 ---
 
-## 3. Technical Diagram
+## 2. Technical Stack
 
-### 3.1 High-Level Flow
+**Framework / language**
 
+- **Flutter** (Dart 3.8.x)
+
+**State management**
+
+- **BLoC pattern** via:
+  - `flutter_bloc`
+  - `equatable` – value equality for events and states
+
+**HTTP / API**
+
+- **Dio** – HTTP client; used by the imgBB API layer for multipart/form-data image upload.
+
+**Storage / device features**
+
+- **Drift** (+ `sqlite3_flutter_libs`) – local SQLite for batches and images (file paths, upload status).
+- **path**, **path_provider** – file paths and app documents directory for stored images.
+- **camera** – device camera capture and preview.
+- **permission_handler** – camera permission.
+- **connectivity_plus** – network check in the background worker.
+- **workmanager** – periodic background task to run sync when connected.
+
+**Utilities**
+
+- **equatable** – clean value equality for BLoC events and state.
+
+---
+
+## 3. Project Structure / Approaches
+
+### Architectural approach
+
+The app follows **Clean Architecture** with a **BLoC presentation layer** and feature-based modules:
+
+- **Presentation layer (Flutter + BLoC)**  
+  Screens and BLoC classes; BLoCs call use cases and repository abstractions.
+- **Domain layer (pure Dart)**  
+  Entities, repository interfaces, and use cases; no Flutter or external packages (except equatable/core types).
+- **Data layer (platform integration)**  
+  Repository implementations, Drift database, CameraDataSource, ImgBB API (Dio), and local file storage.
+
+High-level flow:
+
+```mermaid
+flowchart TB
+  subgraph Presentation
+    CameraScreen[CameraPreviewScreen]
+    BatchesScreen[PendingUploadsScreen]
+    CameraBloc[CameraBloc]
+    UploadBloc[UploadQueueBloc]
+    CameraScreen -->|events / state| CameraBloc
+    BatchesScreen -->|events / state| UploadBloc
+  end
+
+  subgraph Domain
+    Entities[Entities: CaptureBatch, CapturedImage, BatchWithImages, ...]
+    Repos[Repositories: CameraRepository, BatchRepository, SyncRepository]
+    UseCases[Use cases: CreateBatch, AddImageToBatch, SyncPendingBatches, ...]
+  end
+
+  subgraph Data
+    CameraRepoImpl[CameraRepositoryImpl]
+    BatchRepoImpl[BatchRepositoryImpl]
+    SyncRepoImpl[SyncRepositoryImpl]
+    DB[(Drift DB)]
+    ImgBbApi[ImgBbApi]
+  end
+
+  CameraBloc -->|use| UseCases
+  UploadBloc -->|use| UseCases
+  UseCases --> Repos
+  CameraRepoImpl --> CameraDataSource[CameraDataSource]
+  BatchRepoImpl --> DB
+  SyncRepoImpl --> DB
+  SyncRepoImpl --> ImgBbApi
+  ImgBbApi -->|Dio| Dio[Dio]
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              FLUTTER APP                                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────┐     ┌─────────────────────┐                        │
-│  │   Camera Tab        │     │   Pending Tab       │                        │
-│  │   CameraPreview     │     │   PendingUploads    │                        │
-│  │   Screen            │     │   Screen             │                        │
-│  └──────────┬──────────┘     └──────────┬──────────┘                        │
-│             │                            │                                    │
-│             ▼                            ▼                                    │
-│  ┌─────────────────────┐     ┌─────────────────────┐                        │
-│  │   CameraBloc         │     │   UploadQueueBloc   │                        │
-│  │   (capture, zoom,   │     │   (load batches     │                        │
-│  │    focus, batch)    │     │    with images)     │                        │
-│  └──────────┬──────────┘     └──────────┬──────────┘                        │
-│             │                            │                                    │
-│             │  fire-and-forget           │                                    │
-│             │  sync after capture        │                                    │
-│             ▼                            ▼                                    │
-│  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                    DOMAIN USE CASES                                    │  │
-│  │  CreateBatch | AddImageToBatch | SyncPendingBatches |                 │  │
-│  │  GetPendingBatchesWithImages | CaptureImage | InitializeCamera | ...  │  │
-│  └──────────────────────────────────────────────────────────────────────┘  │
-│             │                                    │                           │
-│             ▼                                    ▼                           │
-│  ┌─────────────────────┐     ┌─────────────────────────────────────────┐   │
-│  │   CameraRepository  │     │   BatchRepository | SyncRepository       │   │
-│  │   (impl)            │     │   (impl)                                  │   │
-│  └──────────┬──────────┘     └────────────────────┬────────────────────┘   │
-│             │                                      │                         │
-│             ▼                                      ▼                         │
-│  ┌─────────────────────┐     ┌─────────────────────────────────────────┐   │
-│  │   CameraDataSource   │     │   AppDatabase (Drift)  │  ImgBbApi (Dio) │   │
-│  │   (camera plugin)    │     │   Batches + Images      │  multipart      │   │
-│  └─────────────────────┘     └─────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────┘
-             │
-             │  Workmanager (periodic, ~15 min, when connected)
-             ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BACKGROUND ISOLATE (sync_worker)                                            │
-│  ConnectivityService → SyncRepositoryImpl → SyncPendingBatches → ImgBB     │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
 
-### 3.2 Sync and Upload Status Flow
+### Main BLoC and flows
 
-```
-                    ┌─────────────┐
-                    │   pending   │◄───────────────────┐
-                    └──────┬──────┘                    │
-                           │ sync picks up             │ any failure
-                           ▼                           │ (network / API / other)
-                    ┌─────────────┐                    │
-                    │  uploading  │                    │
-                    └──────┬──────┘                    │
-                           │                           │
-              success      │                           │
-                           ▼                           │
-                    ┌─────────────┐                    │
-                    │  uploaded   │                    │
-                    └─────────────┘                    │
-                                                       │
-                    (image stays pending for retry) ────┘
-```
+- **`CameraBloc`**
+  - **Key events**
+    - `CameraStarted` – on camera tab load: permissions, init camera, emit `CameraReady` with controller, zoom range, focus support.
+    - `CameraStopped` – dispose camera, emit `CameraInitial`.
+    - `CameraCapturePressed` – ensure current batch (create if null), capture image, copy to app storage, add to batch, trigger fire-and-forget sync.
+    - `CameraNewBatchRequested` – clear `currentBatch` in state so the next capture creates a new batch.
+    - `CameraZoomChanged` – update zoom level.
+    - `CameraFocusRequested` – set focus at normalized (x, y).
+  - **State (`CameraState`)**
+    - `CameraInitial`, `CameraLoading`, `CameraFailureState`, `CameraReady` (controller, min/max/current zoom, isZoomSupported, isFocusSupported, focusPoint, currentBatch, lastCapturedImagePath, isCapturing).
 
-### 3.3 Project Structure (lib)
+- **`UploadQueueBloc`**
+  - **Key events**
+    - `UploadQueueStarted` – on Batches tab load: load all batches with images.
+    - `UploadQueueRefreshed` – reload all batches (e.g. after opening tab or pull-to-refresh).
+    - `UploadQueueBatchDeleted` – delete batch and its images, then reload list.
+  - **State (`UploadQueueState`)**
+    - `UploadQueueInitial`, `UploadQueueLoading`, `UploadQueueEmpty`, `UploadQueueFailureState`, `UploadQueueLoaded(List<BatchWithImages>)`.
 
-```
+### File-level structure
+
+```text
 lib/
-├── main.dart                    # DI, Workmanager registration, runApp
-├── root_shell.dart              # Tab shell: Camera | Pending, refresh on Pending
+├── main.dart                          # DI, Workmanager registration, runApp
+├── root_shell.dart                    # Tab shell: Camera | Batches
 ├── background/
-│   └── sync_worker.dart         # Workmanager entry, background sync
+│   └── sync_worker.dart               # Workmanager entry, background sync
 ├── core/
 │   ├── db/
-│   │   ├── app_database.dart    # Drift schema (Batches, Images)
-│   │   └── app_database.g.dart  # Generated
+│   │   ├── app_database.dart          # Drift schema (Batches, Images)
+│   │   └── app_database.g.dart        # Generated
 │   ├── error/
-│   │   └── failure.dart         # Failure types (Camera, Storage, Network, …)
+│   │   └── failure.dart
 │   ├── network/
-│   │   ├── dio_client.dart      # Reusable Dio client
+│   │   ├── dio_client.dart
 │   │   └── imgbb/
-│   │       ├── imgbb_api.dart   # Multipart upload to imgBB
+│   │       ├── imgbb_api.dart
 │   │       ├── imgbb_config.dart
 │   │       └── imgbb_models.dart
 │   ├── result/
-│   │   └── result.dart          # Result<T> (success | failure)
+│   │   └── result.dart
 │   ├── services/
 │   │   ├── connectivity_service.dart
 │   │   └── permission_service.dart
 │   ├── storage/
 │   │   └── local_file_storage.dart
 │   └── usecase/
-│       └── use_case.dart        # UseCase<T, P> base
+│       └── use_case.dart
 └── features/
     ├── camera/
+    │   ├── domain/
+    │   │   ├── entities/
+    │   │   ├── repositories/
+    │   │   │   └── camera_repository.dart
+    │   │   └── usecases/
     │   ├── data/
     │   │   ├── datasources/
     │   │   │   └── camera_data_source.dart
     │   │   └── repositories/
     │   │       └── camera_repository_impl.dart
-    │   ├── domain/
-    │   │   ├── entities/
-    │   │   │   ├── capture_batch.dart
-    │   │   │   ├── captured_image.dart
-    │   │   │   ├── camera_device.dart
-    │   │   │   ├── focus_point.dart
-    │   │   │   └── upload_status.dart
-    │   │   ├── repositories/
-    │   │   │   └── camera_repository.dart
-    │   │   └── usecases/
-    │   │       └── (initialize, capture, zoom, focus, dispose, …)
     │   └── presentation/
     │       ├── bloc/
     │       │   ├── camera_bloc.dart
@@ -220,13 +173,6 @@ lib/
     │       └── pages/
     │           └── camera_preview_screen.dart
     └── sync/
-        ├── data/
-        │   ├── mappers/
-        │   │   ├── batch_mappers.dart
-        │   │   └── image_mappers.dart
-        │   └── repositories/
-        │       ├── batch_repository_impl.dart
-        │       └── sync_repository_impl.dart
         ├── domain/
         │   ├── entities/
         │   │   └── batch_with_images.dart
@@ -234,7 +180,11 @@ lib/
         │   │   ├── batch_repository.dart
         │   │   └── sync_repository.dart
         │   └── usecases/
-        │       └── (create_batch, add_image, get_pending_*, sync_pending_batches)
+        ├── data/
+        │   ├── mappers/
+        │   ├── repositories/
+        │   │   ├── batch_repository_impl.dart
+        │   │   └── sync_repository_impl.dart
         └── presentation/
             ├── bloc/
             │   ├── upload_queue_bloc.dart
@@ -246,48 +196,92 @@ lib/
 
 ---
 
-## 4. Other Important Points
+## 4. Generative AI Usage
 
-### 4.1 Configuration
+This project was developed with assistance from generative AI as a **coding partner**, not as a full code generator.
 
-- **imgBB API key**: Default is in `lib/core/network/imgbb/imgbb_config.dart`. For production, override with:
-  ```bash
-  flutter run --dart-define=IMGBB_API_KEY=your_key
-  ```
+- **Project bootstrapping & structure**: I used AI to discuss and validate the initial project structure (feature folders, BLoC layers, shared widgets) and to cross‑check that the architecture followed common clean/BLoC best practices.
+- **Generic UI flows**: For standard UI patterns I asked AI for example patterns and then adapted the code to match my own coding style.
+- **Technical implementation guidance**: For more complex pieces (state management wiring, responsiveness), I used AI to get guidelines and API reminders, then implemented and refined the final solution myself, validating that it aligned with Flutter and BLoC best practices.
+- **Human review & ownership**: All architectural decisions, implementation details, and final code were reviewed, adjusted, and approved by me before being committed to the repository.
 
-### 4.2 Running the App
-
-```bash
-flutter pub get
-# Optional: generate Drift code if you change schema
-dart run build_runner build --delete-conflicting-outputs
-flutter run
-```
-
-### 4.3 Debug Logging
-
-- **ImgBbApi**: `dev.log` with `name: 'ImgBbApi'` for start, success, and failure (file not found, empty response, non-200).
-- **SyncRepositoryImpl**: `dev.log` with `name: 'SyncRepositoryImpl'` for each image upload attempt, success, DioException, and unexpected errors. Filter by these names in DevTools or the IDE console.
-
-### 4.4 Key Dependencies
-
-| Package           | Purpose                    |
-|------------------|----------------------------|
-| flutter_bloc     | State management           |
-| camera           | Capture and preview        |
-| drift            | Local SQLite (batches, images) |
-| dio              | HTTP; used by ImgBbApi     |
-| workmanager      | Background periodic sync   |
-| permission_handler | Camera permission        |
-| connectivity_plus | Connectivity check in worker |
-| path_provider    | App documents dir for DB and files |
-
-### 4.5 Testing and Extending
-
-- **Unit tests**: Domain use cases and repositories can be tested with mocked repositories. BLoCs can be tested with mocked use cases.
-- **Adding another API**: Reuse `DioClient.dio` (or a new Dio instance) and implement a new API class (e.g. `OtherApi(dio)`); inject it where needed without changing the sync flow.
-- **Schema changes**: Edit `app_database.dart`, bump `schemaVersion`, add a migration in `AppDatabase`, then run `dart run build_runner build --delete-conflicting-outputs`.
 
 ---
 
-This README reflects the full project so that anyone can understand the business goals, technical design, and where to look in the codebase for camera, sync, local DB, and background upload behavior.
+## 5. How to Run
+
+### Prerequisites
+
+- Flutter SDK installed and on your `PATH` (SDK ^3.8.1).
+- Android emulator, iOS simulator, or a physical device with camera.
+
+### Steps
+
+1. **Clone the repository**
+
+   ```bash
+   git clone <https://github.com/SaeefMinhaz/flutter_camera_sync.git>
+   cd flutter_camera_sync
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   flutter pub get
+   ```
+
+3. **Optional: regenerate Drift code** (if you change the database schema)
+
+   ```bash
+   dart run build_runner build --delete-conflicting-outputs
+   ```
+
+4. **Run the app**
+
+   ```bash
+   flutter run
+   ```
+
+5. **Optional: imgBB API key** (override default for production)
+
+   ```bash
+   flutter run --dart-define=IMGBB_API_KEY=your_key
+   ```
+
+6. **Permissions**
+   - On **Android**, the app requests **camera** permission at runtime.
+   - On **iOS**, camera usage description is configured in `Info.plist`.
+
+7. **Testing**
+
+   ```bash
+   flutter test
+   ```
+
+---
+
+## 6. Screenshots
+
+Screenshots live under `assets/screenshots/` and illustrate the camera, batch, and sync flow:
+
+- **Camera screen (full-screen preview, zoom, focus, capture)**
+
+  ![Camera screen](assets/screenshots/1_camera_screen.jpeg)
+
+- **Camera with “New batch” button**
+
+  ![Camera New batch](assets/screenshots/2_camera_new_batch.jpeg)
+
+- **Batches list (pending / uploading / uploaded, with thumbnails)**
+
+  ![Pending batches](assets/screenshots/3_pending_batches.jpeg)
+
+- **Uploaded batches**
+
+  ![Uploaded batches](assets/screenshots/4_uploaded_batches.jpeg)
+
+- **Delete batch confirmation dialog**
+
+  ![Delete batch](assets/screenshots/5_delete_batch.jpeg)
+
+These give a quick visual of the custom camera UI, batch management, and the Batches screen with status and delete flow.
